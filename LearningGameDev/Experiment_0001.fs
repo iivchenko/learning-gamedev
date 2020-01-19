@@ -302,7 +302,10 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
     do
         animals <- Animal.generateWorld 20
 
-    interface IScreen with 
+    interface IScreen with
+
+        member _.Init() = ()
+
         member _.Update(gameTime: GameTime) =
             if not isEscUpPrev && Keyboard.GetState().IsKeyUp(Keys.Escape) then context.Back() else ()
             isEscUpPrev <- Keyboard.GetState().IsKeyUp(Keys.Escape) 

@@ -15,3 +15,16 @@ This expriment is a practice of Kinematic movement algorithms (Wander, Seek, Fle
     - Seek algorithm
     - Wandering algorithm
 	- Flee algorithm
+	
+## Experiment 0002
+
+The experiment is a practice of Dynamic movement algorithms.
+
+**Tech Stack**
+- 2D Math
+  - Vectors
+  - Local coordinate system
+- Physics
+  - Dynamics
+    - Seek and Flee algorithm
+    - Ariving and Leaving algorithm

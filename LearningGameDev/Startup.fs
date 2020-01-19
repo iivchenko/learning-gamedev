@@ -7,7 +7,7 @@ open Myra.Graphics2D.UI
 
 type MainScreen (context: ScreenContext, spriteBatch: SpriteBatch, exit: unit -> unit) =
 
-    let experiments = ListBox()
+    let mutable experiments = ListBox()
 
     let mutable isEscUpPrev = true
     
@@ -19,35 +19,40 @@ type MainScreen (context: ScreenContext, spriteBatch: SpriteBatch, exit: unit ->
             // Reflection, Quotations, Computation Expressions etc.
             match experiments.Items.[value].Text with
             | "Experiment 0001" -> context.Next(Experiment_0001.Screen (context, spriteBatch))
+            | "Experiment 0002" -> context.Next(Experiment_0002.Screen (context, spriteBatch))
             | _ -> ()
 
-    do
-        let panel = new VerticalStackPanel()
-        panel.HorizontalAlignment <- HorizontalAlignment.Center
-        panel.VerticalAlignment <- VerticalAlignment.Center
-
-        let experiment0001 = ListItem()
-        experiment0001.Id <- ""
-        experiment0001.Text <- "Experiment 0001"
-
-        let experiment0002 = ListItem()
-        experiment0002.Id <- null
-        experiment0002.Text <- "Experiment 0002"
-       
-        experiments.Items.Add(experiment0001)
-        experiments.Items.Add(experiment0002)
-
-        let startButton = new TextButton()
-        startButton.Text <- "Start Experiment"
-        startButton.Id <- ""
-        startButton.Click.Add(start)
-
-        panel.Widgets.Add(experiments)
-        panel.Widgets.Add(startButton)
-
-        Desktop.Widgets.Add(panel)
-
     interface IScreen with 
+
+        member _.Init () =
+            Desktop.Widgets.Clear()
+
+            experiments <- ListBox()
+            let panel = new VerticalStackPanel()
+            panel.HorizontalAlignment <- HorizontalAlignment.Center
+            panel.VerticalAlignment <- VerticalAlignment.Center
+
+            let experiment0001 = ListItem()
+            experiment0001.Id <- ""
+            experiment0001.Text <- "Experiment 0001"
+
+            let experiment0002 = ListItem()
+            experiment0002.Id <- null
+            experiment0002.Text <- "Experiment 0002"
+       
+            experiments.Items.Add(experiment0001)
+            experiments.Items.Add(experiment0002)
+
+            let startButton = new TextButton()
+            startButton.Text <- "Start Experiment"
+            startButton.Id <- ""
+            startButton.Click.Add(start)
+
+            panel.Widgets.Add(experiments)
+            panel.Widgets.Add(startButton)
+
+            Desktop.Widgets.Add(panel)
+
         member _.Update(_: GameTime) =
             if not isEscUpPrev && Keyboard.GetState().IsKeyUp(Keys.Escape) then exit() else ()
             
