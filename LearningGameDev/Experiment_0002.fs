@@ -27,16 +27,14 @@ module TheMath =
 
     let toRad degrees = (float degrees) * (System.Math.PI/180.0) |> float32
 
-type EntityType = Character | Target
-
 type Entity =
-    { Type : EntityType
-      Position: Vector
+    { Position: Vector
       Orientation: float32
       Velocity: Vector
       Rotation: float32 
       MaxSpeed: float32 
-      MaxRotation: float32 }
+      MaxRotation: float32 
+      Color: Color }
 
 module Character =
 
@@ -64,11 +62,7 @@ module Character =
 
         let (x, y) = Vector.unwrap entity.Position
 
-        match entity.Type with 
-        | Target ->
-            spriteBatch.DrawPolygon(Vector2(x, y), new Shapes.Polygon(points), Color.AliceBlue)
-        | Character ->
-            spriteBatch.DrawPolygon(Vector2(x, y), new Shapes.Polygon(points), Color.Red)
+        spriteBatch.DrawPolygon(Vector2(x, y), new Shapes.Polygon(points), entity.Color)
 
 module Behavior =
     
@@ -141,36 +135,25 @@ module Behavior =
                     then (Vector.zero(), angular / angularAcceleration * maxAngularAcceleration)
                     else (Vector.zero(), angular)
 
+    let velocityMatch character target = 
+
+        let maxAcceleration = 200.0f
+        let timeToTarget = 0.1f 
+
+        let linear = Vector.sub target.Velocity character.Velocity |> Vector.div timeToTarget
+
+        if Vector.length linear > maxAcceleration
+            then (linear |> Vector.normalize |> Vector.mul maxAcceleration, 0.0f)
+            else (linear, 0.0f)
+
 module World = 
     let private rnd = Random()
 
     let random min max = 
         rnd.Next(min, max) |> float32 
 
-    let randomPosition () =
+    let randomVector () =
         Vector.init (rnd.Next(0, 1920) |> float32) (rnd.Next(0, 1080) |> float32)
-
-    let generateCharacter position maxSpeed orientation maxRotation = 
-        { 
-            Type = Character
-            Position = position
-            Orientation = orientation
-            Rotation = 0.0f
-            Velocity = Vector.zero()
-            MaxSpeed = maxSpeed
-            MaxRotation = maxRotation
-        }
-
-    let generateTarget position orientation maxRotation = 
-        { 
-            Type = Target
-            Position = position
-            Orientation = orientation
-            MaxSpeed = 0.0f
-            Rotation = 0.0f
-            Velocity = Vector.zero()
-            MaxRotation = maxRotation
-        }
 
 type ICase =
     abstract Update: float32 -> unit
@@ -183,8 +166,27 @@ type EmptyCase() =
         member this.Draw (delta: float32) = ()
 
 type SeekCase(spriteBatch: SpriteBatch) =
-    let target = World.generateTarget (World.randomPosition()) 0.0f 0.0f
-    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000) 0.0f 0.0f
+    let target = 
+        { 
+            Position = World.randomVector()
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = 0.0f
+            MaxRotation = 0.0f
+            Color = Color.AliceBlue
+        }
+        
+    let mutable character =
+        { 
+            Position = World.randomVector()
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = World.random 100 1000
+            MaxRotation = 0.0f
+            Color = Color.Red
+        }
 
     interface ICase with 
 
@@ -198,9 +200,28 @@ type SeekCase(spriteBatch: SpriteBatch) =
             Character.draw spriteBatch character
 
 type FleeCase(spriteBatch: SpriteBatch) =
-    let position = World.randomPosition()
-    let target = World.generateTarget position 0.0f 0.0f
-    let mutable character = World.generateCharacter (Vector.add position (Vector.init (World.random -20 20) (World.random -20 20))) (World.random 100 1000) 0.0f 0.0f
+    let position = World.randomVector()
+    let target = 
+        { 
+            Position = position
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = 0.0f
+            MaxRotation = 0.0f
+            Color = Color.AliceBlue
+        }
+
+    let mutable character =
+        { 
+            Position = (Vector.add position (Vector.init (World.random -20 20) (World.random -20 20)))
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = (World.random 100 1000)
+            MaxRotation = 0.0f
+            Color = Color.Red
+        }
 
     interface ICase with 
 
@@ -214,8 +235,27 @@ type FleeCase(spriteBatch: SpriteBatch) =
             Character.draw spriteBatch character
 
 type ArriveCase(spriteBatch: SpriteBatch) =
-    let target = World.generateTarget (World.randomPosition()) 0.0f 0.0f
-    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000) 0.0f 0.0f
+    let target =
+        { 
+            Position = World.randomVector()
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = 0.0f
+            MaxRotation = 0.0f
+            Color = Color.AliceBlue
+        }
+
+    let mutable character =
+        { 
+            Position = World.randomVector()
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = World.random 100 1000
+            MaxRotation = 0.0f
+            Color = Color.Red
+        }
 
     interface ICase with 
 
@@ -229,10 +269,27 @@ type ArriveCase(spriteBatch: SpriteBatch) =
             Character.draw spriteBatch character
 
 type AlignCase(spriteBatch: SpriteBatch) =
-    let targetPosition = Vector.init (1920.0f/2.0f + 50.0f) (1080.0f/2.0f)
-    let characterPosition = Vector.init (1920.0f/2.0f - 50.0f) (1080.0f/2.0f)
-    let target = World.generateTarget targetPosition (World.random 0 360 |> TheMath.toRad) (0.0f |> TheMath.toRad) 
-    let mutable character = World.generateCharacter characterPosition 0.0f (World.random 0 360 |> TheMath.toRad) (World.random 360 1000 |> TheMath.toRad)
+    let target =
+        { 
+            Position = Vector.init (1920.0f/2.0f + 50.0f) (1080.0f/2.0f)
+            Orientation = World.random 0 360 |> TheMath.toRad
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = 0.0f
+            MaxRotation = 0.0f
+            Color = Color.AliceBlue
+        }
+
+    let mutable character =
+        { 
+            Position = Vector.init (1920.0f/2.0f - 50.0f) (1080.0f/2.0f)
+            Orientation = World.random 0 360 |> TheMath.toRad
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = 0.0f
+            MaxRotation = World.random 360 1000 |> TheMath.toRad
+            Color = Color.Red
+        }
             
     interface ICase with 
             
@@ -241,6 +298,42 @@ type AlignCase(spriteBatch: SpriteBatch) =
             
             character <- Character.update delta character velocities
             
+        member this.Draw (delta: float32) =
+            Character.draw spriteBatch target
+            Character.draw spriteBatch character
+
+type VelocityMatchCase(spriteBatch: SpriteBatch) =
+
+    let mutable target = 
+        { 
+            Position = Vector.init (1920.0f/2.0f + 50.0f) (1080.0f/2.0f)
+            Orientation = World.random 100 1000
+            Rotation = 0.0f
+            Velocity = Vector.init (World.random 0 250) (World.random 0 250)
+            MaxSpeed = World.random 0 100
+            MaxRotation = 0.0f
+            Color = Color.AliceBlue
+        }
+    
+    let mutable character = 
+        { 
+            Position = Vector.init (1920.0f/2.0f - 50.0f) (1080.0f/2.0f)
+            Orientation = World.random 100 1000
+            Rotation = 0.0f
+            Velocity = Vector.init (World.random 0 250) (World.random 0 250)
+            MaxSpeed = World.random 100 250
+            MaxRotation = 0.0f
+            Color = Color.Red
+        }
+
+    interface ICase with 
+
+        member this.Update (delta: float32) =
+            let velocities = Behavior.velocityMatch character target
+
+            target <- Character.update delta target (Vector.zero(), 0.0f)
+            character <- Character.update delta character velocities
+
         member this.Draw (delta: float32) =
             Character.draw spriteBatch target
             Character.draw spriteBatch character
@@ -277,10 +370,16 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         alignBtn.Text <- "Align"
         alignBtn.Click.Add((fun _ -> case <- AlignCase(spriteBatch)))
 
+        let velocityMatchBtn = TextButton()
+        velocityMatchBtn.Id <- ""
+        velocityMatchBtn.Text <- "Velocity Match"
+        velocityMatchBtn.Click.Add((fun _ -> case <- VelocityMatchCase(spriteBatch)))
+
         panel.Widgets.Add(seekBtn)
         panel.Widgets.Add(fleeBtn)
         panel.Widgets.Add(arriveBtn)
         panel.Widgets.Add(alignBtn)
+        panel.Widgets.Add(velocityMatchBtn)
 
         Desktop.Widgets.Add(panel)
 
