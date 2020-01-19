@@ -5,7 +5,7 @@ open Myra
 open Microsoft.Xna.Framework.Input
 open Myra.Graphics2D.UI
 
-type MainScreen (context: ScreenContext, exit: unit -> unit) =
+type MainScreen (context: ScreenContext, spriteBatch: SpriteBatch, exit: unit -> unit) =
 
     let experiments = ListBox()
 
@@ -18,7 +18,7 @@ type MainScreen (context: ScreenContext, exit: unit -> unit) =
             // TODO: Think about more flexible way of Experiment instantiation.
             // Reflection, Quotations, Computation Expressions etc.
             match experiments.Items.[value].Text with
-            | "Experiment 0001" -> context.Next(Experiment_0001.Screen (context))
+            | "Experiment 0001" -> context.Next(Experiment_0001.Screen (context, spriteBatch))
             | _ -> ()
 
     do
@@ -85,7 +85,7 @@ type TheGame () as this =
 
         MyraEnvironment.Game <- this
 
-        screenContext.Next(MainScreen(screenContext, this.Exit))
+        screenContext.Next(MainScreen(screenContext, spriteBatch, this.Exit))
 
     override _.Update (gameTime: GameTime) =
 
