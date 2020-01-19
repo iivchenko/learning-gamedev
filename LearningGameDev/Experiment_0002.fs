@@ -17,6 +17,7 @@ module Vector =
     let add (Vector(x1, y1)) (Vector(x2, y2)) = Vector(x1 + x2, y1 + y2) 
     let sub (Vector(x1, y1)) (Vector(x2, y2)) = Vector(x1 - x2, y1 - y2) 
     let mul scalar (Vector(x, y)) = Vector(x * scalar, y * scalar)
+    let div scalar (Vector(x, y)) = Vector(x / scalar, y / scalar)
     let length (Vector(x, y)) = pown x 2 + pown y 2 |> sqrt
     let normalize (Vector(x, y)) =
         let length = pown x 2 + pown y 2 |> sqrt
@@ -77,6 +78,28 @@ module Behavior =
 
         (linear, angular)
 
+    let arrive character target = 
+
+        let maxAcceleration = 200.0f
+        let targetRadius = 3.0f
+        let slowRadius = 300.0f
+        let timeToTarget = 0.1f 
+
+        let direction = Vector.sub target character.Position
+        let distance = Vector.length direction
+
+        if distance < targetRadius 
+            then 
+                (Vector.mul -1.0f character.Velocity, -character.Orientation)
+            else
+                let targetSpeed = if distance > slowRadius then character.MaxSpeed else (character.MaxSpeed * distance) / slowRadius
+                let targetVelocity = direction |> Vector.normalize |> Vector.mul targetSpeed
+                let linear = Vector.sub targetVelocity character.Velocity |> Vector.div timeToTarget
+
+                if Vector.length linear > maxAcceleration
+                    then (linear |> Vector.normalize |> Vector.mul maxAcceleration, 0.0f)
+                    else (linear, 0.0f)
+
 module World = 
     let private rnd = Random()
 
@@ -86,12 +109,12 @@ module World =
     let randomPosition () =
         Vector.init (rnd.Next(0, 1920) |> float32) (rnd.Next(0, 1080) |> float32)
 
-    let generateCharacter position = 
+    let generateCharacter position maxSpeed = 
         { 
             Type = Character
             Position = position
             Orientation = 0.0f
-            MaxSpeed = rnd.Next(100, 5000) |> float32
+            MaxSpeed = maxSpeed
             Rotation = 0.0f
             Velocity = Vector.zero()
         }
@@ -118,7 +141,7 @@ type EmptyCase() =
 
 type SeekCase(spriteBatch: SpriteBatch) =
     let target = World.generateTarget (World.randomPosition())
-    let mutable character = World.generateCharacter (World.randomPosition())
+    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000)
 
     interface ICase with 
 
@@ -134,12 +157,27 @@ type SeekCase(spriteBatch: SpriteBatch) =
 type FleeCase(spriteBatch: SpriteBatch) =
     let position = World.randomPosition()
     let target = World.generateTarget position
-    let mutable character = World.generateCharacter (Vector.add position (Vector.init (World.random -20 20) (World.random -20 20)))
+    let mutable character = World.generateCharacter (Vector.add position (Vector.init (World.random -20 20) (World.random -20 20))) (World.random 100 1000)
 
     interface ICase with 
 
         member this.Update (delta: float32) =
-            let velocities = Behavior.flee character target.Position
+            let velocities = Behavior.flee character target.Position 
+
+            character <- Character.update delta character velocities
+
+        member this.Draw (delta: float32) =
+            Character.draw spriteBatch target
+            Character.draw spriteBatch character
+
+type ArriveCase(spriteBatch: SpriteBatch) =
+    let target = World.generateTarget (World.randomPosition())
+    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000)
+
+    interface ICase with 
+
+        member this.Update (delta: float32) =
+            let velocities = Behavior.arrive character target.Position
 
             character <- Character.update delta character velocities
 
@@ -169,8 +207,14 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         fleeBtn.Text <- "Flee"
         fleeBtn.Click.Add((fun _ -> case <- FleeCase(spriteBatch)))
 
+        let arriveBtn = TextButton()
+        arriveBtn.Id <- ""
+        arriveBtn.Text <- "Arrive"
+        arriveBtn.Click.Add((fun _ -> case <- ArriveCase(spriteBatch)))
+
         panel.Widgets.Add(seekBtn)
         panel.Widgets.Add(fleeBtn)
+        panel.Widgets.Add(arriveBtn)
 
         Desktop.Widgets.Add(panel)
 
