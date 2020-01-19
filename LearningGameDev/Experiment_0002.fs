@@ -53,7 +53,10 @@ module Character =
 
 module Behavior =
     
-    let seek character target maxAcceleration = 
+    let seek character target = 
+
+        let maxAcceleration = 200.0f
+
         let linear = 
             Vector.sub target character.Position
             |> Vector.normalize
@@ -62,7 +65,10 @@ module Behavior =
 
         (linear, angular)
 
-    let flee character target maxAcceleration = 
+    let flee character target = 
+        
+        let maxAcceleration = 200.0f
+
         let linear = 
             Vector.sub character.Position target
             |> Vector.normalize
@@ -117,9 +123,9 @@ type SeekCase(spriteBatch: SpriteBatch) =
     interface ICase with 
 
         member this.Update (delta: float32) =
-            let result = Behavior.seek character target.Position 200.0f
+            let velocities = Behavior.seek character target.Position
 
-            character <- Character.update delta character result
+            character <- Character.update delta character velocities
 
         member this.Draw (delta: float32) =
             Character.draw spriteBatch target
@@ -133,9 +139,9 @@ type FleeCase(spriteBatch: SpriteBatch) =
     interface ICase with 
 
         member this.Update (delta: float32) =
-            let result = Behavior.flee character target.Position 200.0f
+            let velocities = Behavior.flee character target.Position
 
-            character <- Character.update delta character result
+            character <- Character.update delta character velocities
 
         member this.Draw (delta: float32) =
             Character.draw spriteBatch target
