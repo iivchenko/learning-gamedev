@@ -23,6 +23,10 @@ module Vector =
         let length = pown x 2 + pown y 2 |> sqrt
         Vector(x/length, y/length)
 
+module TheMath =
+
+    let toRad degrees = (float degrees) * (System.Math.PI/180.0) |> float32
+
 type EntityType = Character | Target
 
 type Entity =
@@ -31,26 +35,40 @@ type Entity =
       Orientation: float32
       Velocity: Vector
       Rotation: float32 
-      MaxSpeed: float32 }
+      MaxSpeed: float32 
+      MaxRotation: float32 }
 
 module Character =
 
+    let rotate (x: float32) (y: float32) (angle: float32) = Vector2(x * cos(angle) - y * sin(angle), x * sin(angle) + y * cos(angle))
+
     let update time character (linear, angular) =
         let position = Vector.mul time character.Velocity |> Vector.add character.Position
-        let orientation = character.Orientation + time * angular
+        let orientation = character.Orientation + time * character.Rotation
         let velocity = Vector.mul time linear |> Vector.add character.Velocity
         let rotation = character.Rotation + time * angular
 
-        { character with Position = position; Orientation = orientation; Rotation = rotation; Velocity = if Vector.length velocity > character.MaxSpeed then velocity |> Vector.normalize |> Vector.mul character.MaxSpeed else velocity }
+        { character with 
+            Position = position; 
+            Orientation = orientation;
+            Rotation = rotation //if abs(rotation) > abs(character.Rotation) then character.MaxRotation * (rotation/abs(rotation)) else rotation; 
+            Velocity = if Vector.length velocity > character.MaxSpeed then velocity |> Vector.normalize |> Vector.mul character.MaxSpeed else velocity }
 
     let draw (spriteBatch: SpriteBatch) entity = 
+
+        let points = new System.Collections.Generic.List<Vector2>()
+
+        points.Add(rotate +15.0f -30.0f entity.Orientation)
+        points.Add(rotate +0.0f +30.0f entity.Orientation)
+        points.Add(rotate -15.0f -30.0f entity.Orientation)
+
+        let (x, y) = Vector.unwrap entity.Position
+
         match entity.Type with 
         | Target ->
-            let (x, y) = Vector.unwrap entity.Position
-            spriteBatch.DrawCircle(Vector2(x, y), 25.0f, 100, Color.AliceBlue)
+            spriteBatch.DrawPolygon(Vector2(x, y), new Shapes.Polygon(points), Color.AliceBlue)
         | Character ->
-            let (x, y) = Vector.unwrap entity.Position
-            spriteBatch.DrawCircle(Vector2(x, y), 25.0f, 100, Color.Red, 25.0f)
+            spriteBatch.DrawPolygon(Vector2(x, y), new Shapes.Polygon(points), Color.Red)
 
 module Behavior =
     
@@ -100,6 +118,29 @@ module Behavior =
                     then (linear |> Vector.normalize |> Vector.mul maxAcceleration, 0.0f)
                     else (linear, 0.0f)
 
+    let align character target = 
+
+        let maxAngularAcceleration = 200.0f |> TheMath.toRad
+        let targetRadius = 10.0f |> TheMath.toRad
+        let slowRadius = 100.0f |> TheMath.toRad
+        let timeToTarget = 0.1f 
+
+        let rotation = target.Orientation - character.Orientation |> Microsoft.Xna.Framework.MathHelper.WrapAngle
+        let rotationSize = abs(rotation)
+
+        if rotationSize < targetRadius 
+            then 
+                (Vector.mul -1.0f character.Velocity, -character.Rotation)
+            else
+                let targetRotation = if rotationSize > slowRadius then character.MaxRotation else (character.MaxRotation * rotationSize) / slowRadius
+                let targetRotation' = targetRotation * rotation / rotationSize
+                let angular = (targetRotation' - character.Rotation) / timeToTarget
+                let angularAcceleration = abs(angular)
+
+                if angularAcceleration > maxAngularAcceleration
+                    then (Vector.zero(), angular / angularAcceleration * maxAngularAcceleration)
+                    else (Vector.zero(), angular)
+
 module World = 
     let private rnd = Random()
 
@@ -109,24 +150,26 @@ module World =
     let randomPosition () =
         Vector.init (rnd.Next(0, 1920) |> float32) (rnd.Next(0, 1080) |> float32)
 
-    let generateCharacter position maxSpeed = 
+    let generateCharacter position maxSpeed orientation maxRotation = 
         { 
             Type = Character
             Position = position
-            Orientation = 0.0f
-            MaxSpeed = maxSpeed
+            Orientation = orientation
             Rotation = 0.0f
             Velocity = Vector.zero()
+            MaxSpeed = maxSpeed
+            MaxRotation = maxRotation
         }
 
-    let generateTarget position =
+    let generateTarget position orientation maxRotation = 
         { 
             Type = Target
             Position = position
-            Orientation = 0.0f
+            Orientation = orientation
             MaxSpeed = 0.0f
             Rotation = 0.0f
             Velocity = Vector.zero()
+            MaxRotation = maxRotation
         }
 
 type ICase =
@@ -136,12 +179,12 @@ type ICase =
 type EmptyCase() =
     interface ICase with 
 
-        member this.Update (delta: float32) = ()        
+        member this.Update (delta: float32) = ()
         member this.Draw (delta: float32) = ()
 
 type SeekCase(spriteBatch: SpriteBatch) =
-    let target = World.generateTarget (World.randomPosition())
-    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000)
+    let target = World.generateTarget (World.randomPosition()) 0.0f 0.0f
+    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000) 0.0f 0.0f
 
     interface ICase with 
 
@@ -156,8 +199,8 @@ type SeekCase(spriteBatch: SpriteBatch) =
 
 type FleeCase(spriteBatch: SpriteBatch) =
     let position = World.randomPosition()
-    let target = World.generateTarget position
-    let mutable character = World.generateCharacter (Vector.add position (Vector.init (World.random -20 20) (World.random -20 20))) (World.random 100 1000)
+    let target = World.generateTarget position 0.0f 0.0f
+    let mutable character = World.generateCharacter (Vector.add position (Vector.init (World.random -20 20) (World.random -20 20))) (World.random 100 1000) 0.0f 0.0f
 
     interface ICase with 
 
@@ -171,8 +214,8 @@ type FleeCase(spriteBatch: SpriteBatch) =
             Character.draw spriteBatch character
 
 type ArriveCase(spriteBatch: SpriteBatch) =
-    let target = World.generateTarget (World.randomPosition())
-    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000)
+    let target = World.generateTarget (World.randomPosition()) 0.0f 0.0f
+    let mutable character = World.generateCharacter (World.randomPosition()) (World.random 100 1000) 0.0f 0.0f
 
     interface ICase with 
 
@@ -181,6 +224,23 @@ type ArriveCase(spriteBatch: SpriteBatch) =
 
             character <- Character.update delta character velocities
 
+        member this.Draw (delta: float32) =
+            Character.draw spriteBatch target
+            Character.draw spriteBatch character
+
+type AlignCase(spriteBatch: SpriteBatch) =
+    let targetPosition = Vector.init (1920.0f/2.0f + 50.0f) (1080.0f/2.0f)
+    let characterPosition = Vector.init (1920.0f/2.0f - 50.0f) (1080.0f/2.0f)
+    let target = World.generateTarget targetPosition (World.random 0 360 |> TheMath.toRad) (0.0f |> TheMath.toRad) 
+    let mutable character = World.generateCharacter characterPosition 0.0f (World.random 0 360 |> TheMath.toRad) (World.random 360 1000 |> TheMath.toRad)
+            
+    interface ICase with 
+            
+        member this.Update (delta: float32) =
+            let velocities = Behavior.align character target
+            
+            character <- Character.update delta character velocities
+            
         member this.Draw (delta: float32) =
             Character.draw spriteBatch target
             Character.draw spriteBatch character
@@ -212,9 +272,15 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         arriveBtn.Text <- "Arrive"
         arriveBtn.Click.Add((fun _ -> case <- ArriveCase(spriteBatch)))
 
+        let alignBtn = TextButton()
+        alignBtn.Id <- ""
+        alignBtn.Text <- "Align"
+        alignBtn.Click.Add((fun _ -> case <- AlignCase(spriteBatch)))
+
         panel.Widgets.Add(seekBtn)
         panel.Widgets.Add(fleeBtn)
         panel.Widgets.Add(arriveBtn)
+        panel.Widgets.Add(alignBtn)
 
         Desktop.Widgets.Add(panel)
 
