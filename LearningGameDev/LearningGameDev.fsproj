@@ -9,6 +9,7 @@
     <Compile Include="Core\Screen.fs" />
     <Compile Include="Experiment_0001.fs" />
     <Compile Include="Experiment_0002.fs" />
+    <Compile Include="Experiment_0003.fs" />
     <Compile Include="Startup.fs" />
   </ItemGroup>
 </Project>

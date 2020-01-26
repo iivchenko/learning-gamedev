@@ -28,3 +28,13 @@ The experiment is a practice of Dynamic movement algorithms.
   - Dynamics
     - Seek and Flee algorithm
     - Ariving and Leaving algorithm
+	
+## Experiment 0003
+
+The experiment is a practice of 2D Matrix: rotation, scale, reflaction, shearing and movement.
+
+**Tech Stack**
+- 2D Math
+  - Vectors
+  - Local coordinate system
+  - Matrix
