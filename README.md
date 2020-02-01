@@ -41,7 +41,7 @@ The experiment is a practice of Dynamic movement algorithms.
 	
 ## Experiment 0003
 
-The experiment is a practice of 2D Matrix: rotation, scale, reflaction, shearing and movement.
+The experiment is a practice of 2D Matrix: rotation, scale, reflaction, shearing.
 
 **Tech Stack**
 - 2D Math
