@@ -7,6 +7,10 @@ A set of different experiments to learn math, ai, physics, game design etc. usin
 - [Linear Algebra - Habr](https://habr.com/ru/post/131931/)
 - [Math - Youtube](https://www.youtube.com/channel/UCEhBM2x5MG9-e_JSOzU068w)
 
+# TODO:
+- Add some 8-bit music for fun
+- Implement game 'Life'
+
 # Experiments 
 ## Experiment 0001
 
