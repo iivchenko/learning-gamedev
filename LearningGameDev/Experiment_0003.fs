@@ -13,7 +13,7 @@ type Vector = Vector of x: float32 * y: float32
 type Matrix =
     | Matrix of m11: float32 * m12: float32 * m21: float32 * m22: float32
     static member (*) (scalar, (Matrix(m11, m12, m21, m22))) = Matrix(scalar * m11, scalar * m12, scalar * m21, scalar * m22)
-    static member (*) ((Vector(v1, v2)), (Matrix(m11, m12, m21, m22))) = Vector(v1 * m11 + v2 * m12, v1 * m21 + v2 * m22)
+    static member (*) ((Vector(v1, v2)), (Matrix(m11, m12, m21, m22))) = Vector(v1 * m11 + v2 * m21, v1 * m12 + v2 * m22)
     static member (*) ((Matrix(a11, a12, a21, a22)), (Matrix(b11, b12, b21, b22))) = Matrix(a11 * b11 + a12 * b21, a11 * b12 + a22 * b22, a21 * b11 + a22 * b21, a21 * b12 + a22 * b22)
 
 type Shape = 
