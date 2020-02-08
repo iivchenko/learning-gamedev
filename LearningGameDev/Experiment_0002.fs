@@ -198,11 +198,35 @@ module Behavior =
 
         ((Vector.mul maxAcceleration (Vector.fromAngle character.Orientation), angular), wanderOrientation)
 
+    let separation character targets = 
+        let threshold = 50.0f
+        let decayCoefficient = 50.0f
+        let maxAcceleration = 500.0f
+        let mutable linear = Vector.zero()
+        for target in targets do
+            if character = target 
+                then () 
+                else 
+                    let direction = Vector.sub target.Position character.Position
+                    let distance = Vector.length direction
+
+                    if distance < threshold 
+                    then 
+                        let strength = min (decayCoefficient/(distance * distance)) maxAcceleration
+                        linear <- Vector.add linear (Vector.mul strength (Vector.normalize direction))
+                    else
+                        ()
+
+        (linear, 0.0f)
+
 module World = 
     let private rnd = Random()
 
     let random min max = 
         rnd.Next(min, max) |> float32 
+
+    let randomInt min max = 
+        rnd.Next(min, max)
 
     let randomVector () =
         Vector.init (rnd.Next(0, 1920) |> float32) (rnd.Next(0, 1080) |> float32)
@@ -519,7 +543,40 @@ type WanderCase(spriteBatch: SpriteBatch) =
             character <- Character.update delta character velocities
 
         member this.Draw (delta: float32) =
-            Character.draw spriteBatch character          
+            Character.draw spriteBatch character
+            
+type SeparationCase(spriteBatch: SpriteBatch) =
+           
+    let randomCharacter() =
+        { 
+            Position =  World.randomVector()
+            Orientation = World.random 0 360 |> TheMath.toRad
+            Rotation = 0.0f
+            Velocity = Vector.init 0.0f 0.0f
+            MaxSpeed = 100.0f
+            MaxRotation = 90.0f |> TheMath.toRad
+            Color = Color.Red
+        }
+
+    let mutable characters = [for _ in 0 .. (World.randomInt 3 100) -> randomCharacter()]
+
+    interface ICase with 
+            
+        member this.Update (delta: float32) =
+
+            let mutable newChars = []
+
+            for character in characters do
+                
+                let velocities = Behavior.separation character characters
+                let newCharacter = Character.update delta character velocities
+
+                newChars <- newCharacter :: newChars
+                        
+            characters <- newChars
+
+        member this.Draw (delta: float32) =
+            List.iter (Character.draw spriteBatch) characters
 
 type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
 
@@ -578,6 +635,11 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         wanderCaseBtn.Text <- "Wander"
         wanderCaseBtn.Click.Add((fun _ -> case <- WanderCase(spriteBatch)))
 
+        let separationCaseBtn = TextButton()
+        separationCaseBtn.Id <- ""
+        separationCaseBtn.Text <- "Separation"
+        separationCaseBtn.Click.Add((fun _ -> case <- SeparationCase(spriteBatch)))
+
         panel.Widgets.Add(seekBtn)
         panel.Widgets.Add(fleeBtn)
         panel.Widgets.Add(arriveBtn)
@@ -587,6 +649,7 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         panel.Widgets.Add(faceBtn)
         panel.Widgets.Add(lookWhereYoureGoingCaseBtn)
         panel.Widgets.Add(wanderCaseBtn)
+        panel.Widgets.Add(separationCaseBtn)
 
         Desktop.Widgets.Add(panel)
 
