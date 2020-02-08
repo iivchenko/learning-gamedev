@@ -41,6 +41,7 @@ The experiment is a practice of Dynamic movement algorithms.
 	- Pursue
     - Face
     - Wander
+	- Path following skiped as to hard and not interesting
 	
 ## Experiment 0003
 
