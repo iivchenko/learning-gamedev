@@ -38,6 +38,8 @@ The experiment is a practice of Dynamic movement algorithms.
   - Dynamics
     - Seek and Flee algorithm
     - Ariving and Leaving algorithm
+	- Align and Velocity match
+	- Pursue
 	
 ## Experiment 0003
 

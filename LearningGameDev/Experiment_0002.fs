@@ -71,7 +71,7 @@ module Behavior =
         let maxAcceleration = 200.0f
 
         let linear = 
-            Vector.sub target character.Position
+            Vector.sub target.Position character.Position
             |> Vector.normalize
             |> Vector.mul maxAcceleration
         let angular = 0.0f
@@ -97,7 +97,7 @@ module Behavior =
         let slowRadius = 300.0f
         let timeToTarget = 0.1f 
 
-        let direction = Vector.sub target character.Position
+        let direction = Vector.sub target.Position character.Position
         let distance = Vector.length direction
 
         if distance < targetRadius 
@@ -146,6 +146,16 @@ module Behavior =
             then (linear |> Vector.normalize |> Vector.mul maxAcceleration, 0.0f)
             else (linear, 0.0f)
 
+    let pursue character target =
+        let maxPrediction = 5.0f
+        let direction = Vector.sub target.Position character.Position
+        let distance = Vector.length direction
+        let speed = Vector.length character.Velocity
+
+        let prediction = if speed <= distance / maxPrediction then maxPrediction else distance / speed
+        let target = { target with Position = Vector.add target.Position (Vector.mul prediction target.Velocity) }
+        seek character target
+
 module World = 
     let private rnd = Random()
 
@@ -191,7 +201,7 @@ type SeekCase(spriteBatch: SpriteBatch) =
     interface ICase with 
 
         member this.Update (delta: float32) =
-            let velocities = Behavior.seek character target.Position
+            let velocities = Behavior.seek character target
 
             character <- Character.update delta character velocities
 
@@ -260,7 +270,7 @@ type ArriveCase(spriteBatch: SpriteBatch) =
     interface ICase with 
 
         member this.Update (delta: float32) =
-            let velocities = Behavior.arrive character target.Position
+            let velocities = Behavior.arrive character target
 
             character <- Character.update delta character velocities
 
@@ -338,6 +348,44 @@ type VelocityMatchCase(spriteBatch: SpriteBatch) =
             Character.draw spriteBatch target
             Character.draw spriteBatch character
 
+type PursueCase(spriteBatch: SpriteBatch) =
+
+    let start = World.random 0 2
+
+    let mutable target = 
+        { 
+            Position = if start = 0.0f then Vector.init 0.0f 100.0f else Vector.init 1920.0f 100.0f
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = if start = 0.0f then Vector.init 100.0f 0.0f else Vector.init -100.0f 0.0f
+            MaxSpeed = 100.0f
+            MaxRotation = 0.0f
+            Color = Color.AliceBlue
+        }
+        
+    let mutable character =
+        { 
+            Position = World.randomVector()
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = World.random 100 1000
+            MaxRotation = 0.0f
+            Color = Color.Red
+        }
+
+    interface ICase with 
+
+        member this.Update (delta: float32) =
+            let velocities = Behavior.pursue character target
+
+            target <- Character.update delta target (target.Velocity, 0.0f)
+            character <- Character.update delta character velocities
+
+        member this.Draw (delta: float32) =
+            Character.draw spriteBatch target
+            Character.draw spriteBatch character
+
 type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
 
     let mutable isEscUpPrev = true
@@ -375,11 +423,17 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         velocityMatchBtn.Text <- "Velocity Match"
         velocityMatchBtn.Click.Add((fun _ -> case <- VelocityMatchCase(spriteBatch)))
 
+        let pursueBtn = TextButton()
+        pursueBtn.Id <- ""
+        pursueBtn.Text <- "Pursue"
+        pursueBtn.Click.Add((fun _ -> case <- PursueCase(spriteBatch)))
+
         panel.Widgets.Add(seekBtn)
         panel.Widgets.Add(fleeBtn)
         panel.Widgets.Add(arriveBtn)
         panel.Widgets.Add(alignBtn)
         panel.Widgets.Add(velocityMatchBtn)
+        panel.Widgets.Add(pursueBtn)
 
         Desktop.Widgets.Add(panel)
 
