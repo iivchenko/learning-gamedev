@@ -9,7 +9,6 @@ A set of different experiments to learn math, ai, physics, game design etc. usin
 
 # TODO:
 - Add some 8-bit music for fun
-- Implement game 'Life'
 
 # Experiments 
 ## Experiment 0001
@@ -50,3 +49,7 @@ The experiment is a practice of 2D Matrix: rotation, scale, reflaction, shearing
   - Vectors
   - Local coordinate system
   - Matrix
+
+## Expreriment 0004
+
+The experiment implemensts [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)

@@ -21,6 +21,7 @@ type MainScreen (context: ScreenContext, spriteBatch: SpriteBatch, exit: unit ->
             | "Experiment 0001" -> context.Next(Experiment_0001.Screen (context, spriteBatch))
             | "Experiment 0002" -> context.Next(Experiment_0002.Screen (context, spriteBatch))
             | "Experiment 0003" -> context.Next(Experiment_0003.Screen (context, spriteBatch))
+            | "Experiment 0004" -> context.Next(Experiment_0004.Screen (context, spriteBatch))
             | _ -> ()
 
     interface IScreen with 
@@ -44,10 +45,15 @@ type MainScreen (context: ScreenContext, spriteBatch: SpriteBatch, exit: unit ->
             let experiment0003 = ListItem()
             experiment0003.Id <- null
             experiment0003.Text <- "Experiment 0003"
+
+            let experiment0004 = ListItem()
+            experiment0004.Id <- null
+            experiment0004.Text <- "Experiment 0004"
        
             experiments.Items.Add(experiment0001)
             experiments.Items.Add(experiment0002)
             experiments.Items.Add(experiment0003)
+            experiments.Items.Add(experiment0004)
 
             let startButton = new TextButton()
             startButton.Text <- "Start Experiment"
