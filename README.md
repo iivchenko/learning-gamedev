@@ -40,6 +40,7 @@ The experiment is a practice of Dynamic movement algorithms.
 	- Align and Velocity match
 	- Pursue
     - Face
+    - Wander
 	
 ## Experiment 0003
 

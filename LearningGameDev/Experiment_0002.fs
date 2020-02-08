@@ -23,10 +23,15 @@ module Vector =
         let length = pown x 2 + pown y 2 |> sqrt
         Vector(x/length, y/length)
     let toVector2 (Vector(x, y)) = Vector2(x, y)
+    let fromAngle angle = Vector(sin(angle), cos(angle))
 
 module TheMath =
 
     let toRad degrees = (float degrees) * (System.Math.PI/180.0) |> float32
+
+    let randomBinomial () = 
+        let random = System.Random()
+        random.NextDouble () - random.NextDouble () |> float32
 
 type Entity =
     { Position: Vector
@@ -168,6 +173,30 @@ module Behavior =
                 let (x, y) = Vector.unwrap direction
                 let target = { target with Orientation = Math.Atan2(float -x, float y) |> float32 }
                 align character target
+
+    let lookWhereYoureGoing character = 
+        if Vector.length character.Velocity = 0.0f
+            then (Vector.zero(), 0.0f)
+            else
+                let (x, y) = Vector.unwrap character.Velocity
+                let target = { Position = Vector.zero(); Velocity = Vector.zero(); Rotation = 0.0f; MaxSpeed = 0.0f; Color = Color.Black; MaxRotation = 0.0f; Orientation = Math.Atan2(float -x, float y)|> float32 }
+                align character target
+
+    let wander character wanderOrientation = 
+        let maxAcceleration = 20.0f
+        let wanderOffset = 100.0f
+        let wanderRadius = 100.0f
+        let wanderRate = 20.0f
+
+        let wanderOrientation = wanderOrientation + TheMath.randomBinomial() * wanderRate  
+
+        let targetOrientation = wanderOrientation + character.Orientation
+        let center = Vector.add character.Position (Vector.mul wanderOffset (Vector.fromAngle character.Orientation))
+        let targetLocation = Vector.add center (Vector.mul wanderRadius (Vector.fromAngle targetOrientation))
+        let target = { Position = targetLocation; Velocity = Vector.zero(); Rotation = 0.0f; MaxSpeed = 0.0f; Color = Color.Black; MaxRotation = 0.0f; Orientation = 0.0f }
+        let (_, angular) = face character target
+
+        ((Vector.mul maxAcceleration (Vector.fromAngle character.Orientation), angular), wanderOrientation)
 
 module World = 
     let private rnd = Random()
@@ -443,6 +472,55 @@ type FaceCase(spriteBatch: SpriteBatch) =
             Character.draw spriteBatch target
             Character.draw spriteBatch character
 
+type LookWhereYoureGoingCase(spriteBatch: SpriteBatch) =
+        
+    let mutable character =
+        { 
+            Position = Vector.init (1920.0f/2.0f) (1080.0f/2.0f)
+            Orientation = World.random 0 360 |> TheMath.toRad
+            Rotation = 0.0f
+            Velocity = Vector.init (World.random -1 1) (World.random -1 1) |> Vector.mul (World.random 10 100)
+            MaxSpeed = World.random 10 100
+            MaxRotation = World.random 5 45 |> TheMath.toRad
+            Color = Color.Red
+        }
+
+    interface ICase with 
+
+        member this.Update (delta: float32) =
+            let velocities = Behavior.lookWhereYoureGoing character            
+          
+            character <- Character.update delta character velocities
+
+        member this.Draw (delta: float32) =
+            Character.draw spriteBatch character
+
+type WanderCase(spriteBatch: SpriteBatch) =
+    
+    let mutable character =
+        { 
+            Position = Vector.init (1920.0f/2.0f) (1080.0f/2.0f)
+            Orientation = World.random 0 360 |> TheMath.toRad
+            Rotation = 0.0f
+            Velocity = Vector.init 0.0f 0.0f // Vector.init (World.random -100 100) (World.random -100 100)
+            MaxSpeed = 100.0f
+            MaxRotation = 90.0f |> TheMath.toRad
+            Color = Color.Red
+        }
+
+    let mutable wander = 1.0f
+    interface ICase with 
+
+        member this.Update (delta: float32) =
+            let (velocities, wanderOrientation) = Behavior.wander character wander
+            
+            wander <- wanderOrientation
+      
+            character <- Character.update delta character velocities
+
+        member this.Draw (delta: float32) =
+            Character.draw spriteBatch character          
+
 type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
 
     let mutable isEscUpPrev = true
@@ -490,6 +568,16 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         faceBtn.Text <- "Face"
         faceBtn.Click.Add((fun _ -> case <- FaceCase(spriteBatch)))
 
+        let lookWhereYoureGoingCaseBtn = TextButton()
+        lookWhereYoureGoingCaseBtn.Id <- ""
+        lookWhereYoureGoingCaseBtn.Text <- "LookWhereYoureGoing"
+        lookWhereYoureGoingCaseBtn.Click.Add((fun _ -> case <- LookWhereYoureGoingCase(spriteBatch)))
+
+        let wanderCaseBtn = TextButton()
+        wanderCaseBtn.Id <- ""
+        wanderCaseBtn.Text <- "Wander"
+        wanderCaseBtn.Click.Add((fun _ -> case <- WanderCase(spriteBatch)))
+
         panel.Widgets.Add(seekBtn)
         panel.Widgets.Add(fleeBtn)
         panel.Widgets.Add(arriveBtn)
@@ -497,6 +585,8 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         panel.Widgets.Add(velocityMatchBtn)
         panel.Widgets.Add(pursueBtn)
         panel.Widgets.Add(faceBtn)
+        panel.Widgets.Add(lookWhereYoureGoingCaseBtn)
+        panel.Widgets.Add(wanderCaseBtn)
 
         Desktop.Widgets.Add(panel)
 
