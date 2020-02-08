@@ -22,6 +22,7 @@ module Vector =
     let normalize (Vector(x, y)) =
         let length = pown x 2 + pown y 2 |> sqrt
         Vector(x/length, y/length)
+    let toVector2 (Vector(x, y)) = Vector2(x, y)
 
 module TheMath =
 
@@ -38,7 +39,7 @@ type Entity =
 
 module Character =
 
-    let rotate (x: float32) (y: float32) (angle: float32) = Vector2(x * cos(angle) - y * sin(angle), x * sin(angle) + y * cos(angle))
+    let rotate (x: float32) (y: float32) (angle: float32) = Vector.init (x * cos(angle) - y * sin(angle)) (x * sin(angle) + y * cos(angle))
 
     let update time character (linear, angular) =
         let position = Vector.mul time character.Velocity |> Vector.add character.Position
@@ -56,9 +57,9 @@ module Character =
 
         let points = new System.Collections.Generic.List<Vector2>()
 
-        points.Add(rotate +15.0f -30.0f entity.Orientation)
-        points.Add(rotate +0.0f +30.0f entity.Orientation)
-        points.Add(rotate -15.0f -30.0f entity.Orientation)
+        points.Add(rotate +15.0f -30.0f entity.Orientation |> Vector.toVector2)
+        points.Add(rotate +0.0f +30.0f entity.Orientation |> Vector.toVector2)
+        points.Add(rotate -15.0f -30.0f entity.Orientation |> Vector.toVector2)
 
         let (x, y) = Vector.unwrap entity.Position
 
@@ -155,6 +156,18 @@ module Behavior =
         let prediction = if speed <= distance / maxPrediction then maxPrediction else distance / speed
         let target = { target with Position = Vector.add target.Position (Vector.mul prediction target.Velocity) }
         seek character target
+
+    let face character target =
+        let direction = Vector.sub target.Position character.Position
+        let distance = Vector.length direction
+
+        if distance = 0.0f 
+            then
+                (Vector.zero(), 0.0f)
+            else
+                let (x, y) = Vector.unwrap direction
+                let target = { target with Orientation = Math.Atan2(float -x, float y) |> float32 }
+                align character target
 
 module World = 
     let private rnd = Random()
@@ -386,6 +399,50 @@ type PursueCase(spriteBatch: SpriteBatch) =
             Character.draw spriteBatch target
             Character.draw spriteBatch character
 
+type FaceCase(spriteBatch: SpriteBatch) =
+
+    let mutable target = 
+        { 
+            Position = Vector.init (1920.0f/2.0f) (1080.0f/2.0f - (World.random 100 500))
+            Orientation = 0.0f
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = 0.0f
+            MaxRotation = TheMath.toRad 0.2f
+            Color = Color.AliceBlue
+        }
+        
+    let mutable character =
+        { 
+            Position = Vector.init (1920.0f/2.0f) (1080.0f/2.0f)
+            Orientation = World.random 0 360 |> TheMath.toRad
+            Rotation = 0.0f
+            Velocity = Vector.zero()
+            MaxSpeed = 0.0f
+            MaxRotation = World.random 360 1000 |> TheMath.toRad
+            Color = Color.Red
+        }
+
+    interface ICase with 
+
+        member this.Update (delta: float32) =
+            let velocities = Behavior.face character target
+            
+            let (x0, y0) = (1920.0f/2.0f, 1080.0f/2.0f)
+            let (xg, yg) = Vector.unwrap target.Position
+            let (xl, yl) = (xg - x0, yg - y0)
+            let distance = Vector.length (Vector.init xl yl)
+            let angle = (Math.Atan2(float xl, float yl) |> float32) + ((TheMath.toRad 1.0f))
+            let (xl, yl) = (distance * sin(angle), distance * cos(angle))
+            let vg = Vector.add (Vector.init xl yl) (Vector.init x0 y0)
+
+            target <- { target with Position = vg; Orientation = (float32 Math.PI) - angle }
+            character <- Character.update delta character velocities
+
+        member this.Draw (delta: float32) =
+            Character.draw spriteBatch target
+            Character.draw spriteBatch character
+
 type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
 
     let mutable isEscUpPrev = true
@@ -428,12 +485,18 @@ type Screen (context: ScreenContext, spriteBatch: SpriteBatch) =
         pursueBtn.Text <- "Pursue"
         pursueBtn.Click.Add((fun _ -> case <- PursueCase(spriteBatch)))
 
+        let faceBtn = TextButton()
+        faceBtn.Id <- ""
+        faceBtn.Text <- "Face"
+        faceBtn.Click.Add((fun _ -> case <- FaceCase(spriteBatch)))
+
         panel.Widgets.Add(seekBtn)
         panel.Widgets.Add(fleeBtn)
         panel.Widgets.Add(arriveBtn)
         panel.Widgets.Add(alignBtn)
         panel.Widgets.Add(velocityMatchBtn)
         panel.Widgets.Add(pursueBtn)
+        panel.Widgets.Add(faceBtn)
 
         Desktop.Widgets.Add(panel)
 
